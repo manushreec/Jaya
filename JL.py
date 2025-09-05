@@ -1,356 +1,524 @@
 import streamlit as st
+import streamlit.components.v1 as components
+import json
 import random
 from datetime import datetime
-import pandas as pd
-import qrcode
-import io
-import base64
-from PIL import Image, ImageDraw, ImageFont
 
-class LogisticsPuzzleGame:
+class VisualLogisticsGame:
     def __init__(self):
         self.init_session_state()
         
     def init_session_state(self):
-        """Initialize all session state variables"""
-        if 'tasks_data' not in st.session_state:
-            st.session_state.tasks_data = self.create_logistics_tasks()
-        if 'current_task' not in st.session_state:
-            st.session_state.current_task = 0
-        if 'task_solutions' not in st.session_state:
-            st.session_state.task_solutions = {i: [None] * 5 for i in range(5)}
-        if 'task_pieces_shuffled' not in st.session_state:
-            st.session_state.task_pieces_shuffled = {}
-            self.shuffle_current_task_pieces()
+        """Initialize game state"""
+        if 'current_scenario' not in st.session_state:
+            st.session_state.current_scenario = 0
         if 'player_score' not in st.session_state:
             st.session_state.player_score = 0
-        if 'completed_subtasks' not in st.session_state:
-            st.session_state.completed_subtasks = set()
+        if 'completed_scenarios' not in st.session_state:
+            st.session_state.completed_scenarios = set()
         if 'player_name' not in st.session_state:
             st.session_state.player_name = ""
         if 'game_started' not in st.session_state:
             st.session_state.game_started = False
         if 'high_scores' not in st.session_state:
             st.session_state.high_scores = []
-        if 'app_url' not in st.session_state:
-            # This will be updated after deployment
-            st.session_state.app_url = "https://logisticsgame.streamlit.app"
             
-    def create_logistics_tasks(self):
-        """Create all logistics tasks and subtasks"""
+    def get_scenarios(self):
+        """Define fun, visual logistics scenarios"""
         return {
             0: {
-                "title": "Warehouse Management",
-                "icon": "📦",
-                "color": "#3498db",
-                "description": "Manage warehouse operations efficiently from receiving to reporting",
-                "subtasks": [
-                    "Receive and inspect incoming inventory shipments",
-                    "Sort and categorize items by product type",
-                    "Update inventory management database systems",
-                    "Assign optimal storage locations in warehouse",
-                    "Generate comprehensive inventory status reports"
-                ]
+                "title": "🏪 Store Delivery Day",
+                "description": "Help deliver groceries to the local store!",
+                "story": "A delivery truck is bringing fresh groceries to SuperMart. Guide the process!",
+                "steps": [
+                    {"id": "start", "text": "🚛 Truck arrives", "icon": "🚛", "color": "#3498db"},
+                    {"id": "unload", "text": "📦 Unload boxes", "icon": "📦", "color": "#e74c3c"},
+                    {"id": "check", "text": "✅ Check inventory", "icon": "✅", "color": "#f39c12"},
+                    {"id": "stock", "text": "🏪 Stock shelves", "icon": "🏪", "color": "#27ae60"},
+                    {"id": "done", "text": "🎉 Store ready!", "icon": "🎉", "color": "#9b59b6"}
+                ],
+                "connections": [(0,1), (1,2), (2,3), (3,4)]
             },
             1: {
-                "title": "Transportation Planning",
-                "icon": "🚛", 
-                "color": "#e74c3c",
-                "description": "Plan and optimize delivery routes for maximum efficiency",
-                "subtasks": [
-                    "Analyze customer delivery destinations and requirements",
-                    "Calculate optimal route distances and travel times",
-                    "Schedule vehicle assignments and driver coordination",
-                    "Optimize fuel consumption and delivery efficiency",
-                    "Prepare detailed delivery manifests and documentation"
-                ]
+                "title": "📱 Online Order Journey",
+                "description": "Track an online order from click to delivery!",
+                "story": "Sarah just ordered a birthday gift online. Follow its journey!",
+                "steps": [
+                    {"id": "order", "text": "🛒 Place order", "icon": "🛒", "color": "#3498db"},
+                    {"id": "payment", "text": "💳 Process payment", "icon": "💳", "color": "#e74c3c"},
+                    {"id": "pick", "text": "📋 Pick from warehouse", "icon": "📋", "color": "#f39c12"},
+                    {"id": "pack", "text": "📦 Pack securely", "icon": "📦", "color": "#27ae60"},
+                    {"id": "deliver", "text": "🚚 Deliver to home", "icon": "🚚", "color": "#9b59b6"}
+                ],
+                "connections": [(0,1), (1,2), (2,3), (3,4)]
             },
             2: {
-                "title": "Supply Chain Coordination",
-                "icon": "🤝",
-                "color": "#27ae60",
-                "description": "Coordinate relationships with suppliers and vendors",
-                "subtasks": [
-                    "Contact suppliers to request competitive price quotes",
-                    "Negotiate favorable delivery terms and conditions",
-                    "Schedule important supplier meetings and reviews",
-                    "Monitor and evaluate incoming supply quality standards",
-                    "Maintain updated supplier database and contact information"
-                ]
+                "title": "🍕 Pizza Delivery Rush",
+                "description": "Get hot pizza from kitchen to customer!",
+                "story": "It's Friday night pizza rush! Help Tony's Pizzeria deliver fast!",
+                "steps": [
+                    {"id": "order", "text": "📞 Take order", "icon": "📞", "color": "#3498db"},
+                    {"id": "make", "text": "🍕 Make pizza", "icon": "🍕", "color": "#e74c3c"},
+                    {"id": "box", "text": "📦 Box it up", "icon": "📦", "color": "#f39c12"},
+                    {"id": "route", "text": "🗺️ Plan route", "icon": "🗺️", "color": "#27ae60"},
+                    {"id": "deliver", "text": "🏠 Deliver hot!", "icon": "🏠", "color": "#9b59b6"}
+                ],
+                "connections": [(0,1), (1,2), (2,3), (3,4)]
             },
             3: {
-                "title": "Order Fulfillment",
-                "icon": "📋",
-                "color": "#f39c12",
-                "description": "Process customer orders from receipt to shipment",
-                "subtasks": [
-                    "Process and validate incoming customer orders",
-                    "Verify product availability in current inventory",
-                    "Pick required items efficiently from warehouse shelves",
-                    "Package orders securely with appropriate materials",
-                    "Generate accurate shipping labels and tracking information"
-                ]
+                "title": "✈️ Airport Cargo",
+                "description": "Move cargo from plane to destination!",
+                "story": "A cargo plane just landed with important packages!",
+                "steps": [
+                    {"id": "land", "text": "✈️ Plane lands", "icon": "✈️", "color": "#3498db"},
+                    {"id": "unload", "text": "📋 Unload cargo", "icon": "📋", "color": "#e74c3c"},
+                    {"id": "scan", "text": "📱 Scan packages", "icon": "📱", "color": "#f39c12"},
+                    {"id": "sort", "text": "📦 Sort by destination", "icon": "📦", "color": "#27ae60"},
+                    {"id": "transport", "text": "🚛 Load trucks", "icon": "🚛", "color": "#9b59b6"}
+                ],
+                "connections": [(0,1), (1,2), (2,3), (3,4)]
             },
             4: {
-                "title": "Inventory Control",
-                "icon": "📊",
-                "color": "#9b59b6",
-                "description": "Maintain optimal inventory levels and stock control",
-                "subtasks": [
-                    "Monitor current stock levels across all products",
-                    "Identify critically low inventory items requiring attention",
-                    "Create and submit new purchase orders to suppliers",
-                    "Track supplier delivery schedules and expected arrivals",
-                    "Update stock management records and system databases"
-                ]
+                "title": "🏭 Factory to Store",
+                "description": "Move products from factory to retail stores!",
+                "story": "New toys are ready at the factory for the holiday season!",
+                "steps": [
+                    {"id": "produce", "text": "🏭 Finish production", "icon": "🏭", "color": "#3498db"},
+                    {"id": "quality", "text": "🔍 Quality check", "icon": "🔍", "color": "#e74c3c"},
+                    {"id": "package", "text": "📦 Package products", "icon": "📦", "color": "#f39c12"},
+                    {"id": "ship", "text": "🚛 Ship to stores", "icon": "🚛", "color": "#27ae60"},
+                    {"id": "display", "text": "🏪 Display in stores", "icon": "🏪", "color": "#9b59b6"}
+                ],
+                "connections": [(0,1), (1,2), (2,3), (3,4)]
             }
         }
     
-    def shuffle_current_task_pieces(self):
-        """Shuffle pieces for the current task only"""
-        current_task = st.session_state.current_task
-        task_data = st.session_state.tasks_data[current_task]
+    def create_drag_drop_interface(self, scenario):
+        """Create the visual drag-and-drop interface"""
         
-        # Create pieces for current task
-        pieces = []
-        for i, subtask in enumerate(task_data["subtasks"]):
-            piece = {
-                "id": f"{current_task}_{i}",
-                "task_id": current_task,
-                "piece_id": i,
-                "text": subtask,
-                "color": task_data["color"],
-                "icon": task_data["icon"]
-            }
-            pieces.append(piece)
+        # Get shuffled steps
+        steps = scenario["steps"].copy()
+        random.shuffle(steps)
         
-        # Shuffle the pieces
-        random.shuffle(pieces)
-        st.session_state.task_pieces_shuffled[current_task] = pieces
-    
-    def apply_custom_css(self):
-        """Apply custom CSS styling with drag-and-drop effects"""
-        st.markdown("""
-        <style>
-        .main-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 2rem;
-            border-radius: 20px;
-            color: white;
-            text-align: center;
-            margin-bottom: 2rem;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
+        drag_drop_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{
+                    font-family: 'Arial', sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                }}
+                
+                .game-container {{
+                    max-width: 1000px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 20px;
+                    padding: 30px;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                }}
+                
+                .story-box {{
+                    background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 15px;
+                    margin-bottom: 30px;
+                    text-align: center;
+                }}
+                
+                .pieces-container {{
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 15px;
+                    margin-bottom: 30px;
+                    min-height: 120px;
+                    background: #f8f9fa;
+                    padding: 20px;
+                    border-radius: 15px;
+                    border: 3px dashed #dee2e6;
+                }}
+                
+                .piece {{
+                    background: white;
+                    border: 3px solid #dee2e6;
+                    border-radius: 15px;
+                    padding: 15px 20px;
+                    cursor: grab;
+                    transition: all 0.3s ease;
+                    user-select: none;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    min-width: 180px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                }}
+                
+                .piece:hover {{
+                    transform: translateY(-5px) scale(1.05);
+                    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+                    border-color: #3498db;
+                }}
+                
+                .piece:active {{
+                    cursor: grabbing;
+                    transform: scale(0.95);
+                }}
+                
+                .piece-icon {{
+                    font-size: 24px;
+                }}
+                
+                .piece-text {{
+                    font-weight: bold;
+                    color: #2c3e50;
+                }}
+                
+                .flow-container {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 20px;
+                    margin-bottom: 30px;
+                    padding: 20px;
+                    background: #ecf0f1;
+                    border-radius: 15px;
+                }}
+                
+                .drop-zone {{
+                    width: 150px;
+                    height: 100px;
+                    border: 3px dashed #bdc3c7;
+                    border-radius: 15px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: white;
+                    transition: all 0.3s ease;
+                    position: relative;
+                }}
+                
+                .drop-zone:hover {{
+                    border-color: #3498db;
+                    background: #ebf3fd;
+                    transform: scale(1.05);
+                }}
+                
+                .drop-zone.filled {{
+                    border-color: #27ae60;
+                    background: #d5f4e6;
+                    border-style: solid;
+                }}
+                
+                .drop-zone.correct {{
+                    border-color: #27ae60;
+                    background: #d5f4e6;
+                    animation: correctDrop 0.6s ease-in-out;
+                }}
+                
+                .drop-zone.wrong {{
+                    border-color: #e74c3c;
+                    background: #fadbd8;
+                    animation: wrongDrop 0.6s ease-in-out;
+                }}
+                
+                @keyframes correctDrop {{
+                    0%, 100% {{ transform: scale(1); }}
+                    50% {{ transform: scale(1.1); }}
+                }}
+                
+                @keyframes wrongDrop {{
+                    0%, 20%, 40%, 60%, 80%, 100% {{ transform: translateX(0); }}
+                    10%, 30%, 50%, 70%, 90% {{ transform: translateX(-5px); }}
+                }}
+                
+                .arrow {{
+                    font-size: 30px;
+                    color: #7f8c8d;
+                    animation: pulse 2s infinite;
+                }}
+                
+                @keyframes pulse {{
+                    0%, 100% {{ opacity: 0.6; }}
+                    50% {{ opacity: 1; }}
+                }}
+                
+                .score-display {{
+                    background: linear-gradient(45deg, #28a745, #20c997);
+                    color: white;
+                    padding: 15px 25px;
+                    border-radius: 25px;
+                    text-align: center;
+                    font-size: 18px;
+                    font-weight: bold;
+                    margin: 20px 0;
+                    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+                }}
+                
+                .celebration {{
+                    background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 15px;
+                    text-align: center;
+                    font-size: 20px;
+                    margin: 20px 0;
+                    animation: celebrate 1s ease-in-out;
+                }}
+                
+                @keyframes celebrate {{
+                    0%, 100% {{ transform: scale(1); }}
+                    50% {{ transform: scale(1.05); }}
+                }}
+                
+                .step-number {{
+                    position: absolute;
+                    top: -10px;
+                    left: -10px;
+                    background: #3498db;
+                    color: white;
+                    border-radius: 50%;
+                    width: 25px;
+                    height: 25px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 12px;
+                    font-weight: bold;
+                }}
+                
+                @media (max-width: 768px) {{
+                    .flow-container {{
+                        flex-direction: column;
+                        gap: 15px;
+                    }}
+                    
+                    .arrow {{
+                        transform: rotate(90deg);
+                    }}
+                    
+                    .piece {{
+                        min-width: 150px;
+                        font-size: 14px;
+                    }}
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="game-container">
+                <div class="story-box">
+                    <h2>📖 {scenario["title"]}</h2>
+                    <p>{scenario["story"]}</p>
+                    <p><strong>Mission:</strong> Drag the steps below into the correct order!</p>
+                </div>
+                
+                <div class="pieces-container" id="pieces-pool">
+                    <h3 style="width: 100%; margin: 0 0 15px 0; color: #2c3e50;">🧩 Available Steps (Drag these!):</h3>
+        """
         
-        .task-selector {
-            background: #34495e;
-            padding: 1rem;
-            border-radius: 15px;
-            margin: 1rem 0;
-            color: white;
-            text-align: center;
-        }
+        # Add shuffled pieces
+        for i, step in enumerate(steps):
+            drag_drop_html += f"""
+                    <div class="piece" draggable="true" data-step-id="{step['id']}" data-correct-position="{scenario['steps'].index(step)}">
+                        <span class="piece-icon">{step['icon']}</span>
+                        <span class="piece-text">{step['text']}</span>
+                    </div>
+            """
         
-        .puzzle-piece {
-            padding: 1rem;
-            margin: 0.5rem;
-            border-radius: 12px;
-            border: 3px solid #bdc3c7;
-            cursor: grab;
-            transition: all 0.3s ease;
-            color: white;
-            font-weight: 500;
-            min-height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            position: relative;
-            user-select: none;
-        }
+        drag_drop_html += """
+                </div>
+                
+                <div class="flow-container" id="flow-area">
+        """
         
-        .puzzle-piece:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-            border-color: #f39c12;
-        }
+        # Add drop zones
+        for i in range(5):
+            drag_drop_html += f"""
+                    <div class="drop-zone" data-position="{i}">
+                        <div class="step-number">{i+1}</div>
+                        <span style="color: #7f8c8d; font-size: 12px;">Drop here</span>
+                    </div>
+                    {f'<div class="arrow">→</div>' if i < 4 else ''}
+            """
         
-        .puzzle-piece:active {
-            cursor: grabbing;
-            transform: scale(0.98);
-        }
+        drag_drop_html += f"""
+                </div>
+                
+                <div class="score-display" id="score">
+                    🏆 Score: <span id="current-score">0</span> / 100 points
+                </div>
+                
+                <div id="feedback"></div>
+            </div>
+            
+            <script>
+                let score = 0;
+                let placedPieces = {{}};
+                
+                // Drag and drop functionality
+                document.addEventListener('DOMContentLoaded', function() {{
+                    const pieces = document.querySelectorAll('.piece');
+                    const dropZones = document.querySelectorAll('.drop-zone');
+                    
+                    pieces.forEach(piece => {{
+                        piece.addEventListener('dragstart', handleDragStart);
+                    }});
+                    
+                    dropZones.forEach(zone => {{
+                        zone.addEventListener('dragover', handleDragOver);
+                        zone.addEventListener('drop', handleDrop);
+                        zone.addEventListener('click', handleZoneClick);
+                    }});
+                }});
+                
+                function handleDragStart(e) {{
+                    e.dataTransfer.setData('text/plain', e.target.dataset.stepId);
+                    e.dataTransfer.setData('text/correct-position', e.target.dataset.correctPosition);
+                }}
+                
+                function handleDragOver(e) {{
+                    e.preventDefault();
+                }}
+                
+                function handleDrop(e) {{
+                    e.preventDefault();
+                    const stepId = e.dataTransfer.getData('text/plain');
+                    const correctPosition = parseInt(e.dataTransfer.getData('text/correct-position'));
+                    const dropPosition = parseInt(e.target.closest('.drop-zone').dataset.position);
+                    
+                    placePiece(stepId, dropPosition, correctPosition);
+                }}
+                
+                function handleZoneClick(e) {{
+                    const zone = e.target.closest('.drop-zone');
+                    if (zone.classList.contains('filled')) {{
+                        // Remove piece and return to pool
+                        const piece = zone.querySelector('.piece');
+                        if (piece) {{
+                            document.getElementById('pieces-pool').appendChild(piece);
+                            zone.classList.remove('filled', 'correct', 'wrong');
+                            zone.innerHTML = `
+                                <div class="step-number">${{parseInt(zone.dataset.position) + 1}}</div>
+                                <span style="color: #7f8c8d; font-size: 12px;">Drop here</span>
+                            `;
+                            delete placedPieces[zone.dataset.position];
+                            updateScore();
+                        }}
+                    }}
+                }}
+                
+                function placePiece(stepId, dropPosition, correctPosition) {{
+                    const piece = document.querySelector(`[data-step-id="${{stepId}}"]`);
+                    const dropZone = document.querySelector(`[data-position="${{dropPosition}}"]`);
+                    
+                    // Clear the drop zone
+                    dropZone.innerHTML = '';
+                    dropZone.appendChild(piece);
+                    
+                    // Update styling
+                    if (correctPosition === dropPosition) {{
+                        dropZone.classList.add('filled', 'correct');
+                        dropZone.classList.remove('wrong');
+                        placedPieces[dropPosition] = {{ stepId, correct: true }};
+                        
+                        // Celebration effect
+                        showFeedback('✅ Perfect! That step is in the right place!', 'success');
+                    }} else {{
+                        dropZone.classList.add('filled', 'wrong');
+                        dropZone.classList.remove('correct');
+                        placedPieces[dropPosition] = {{ stepId, correct: false }};
+                        
+                        showFeedback('❌ Not quite right. Try a different position!', 'error');
+                    }}
+                    
+                    updateScore();
+                    checkCompletion();
+                }}
+                
+                function updateScore() {{
+                    const correctPlacements = Object.values(placedPieces).filter(p => p.correct).length;
+                    score = correctPlacements * 20;
+                    document.getElementById('current-score').textContent = score;
+                }}
+                
+                function checkCompletion() {{
+                    const correctCount = Object.values(placedPieces).filter(p => p.correct).length;
+                    if (correctCount === 5) {{
+                        showFeedback('🎉 AMAZING! You completed the logistics flow perfectly! 🏆', 'celebration');
+                        
+                        // Send score to Streamlit
+                        window.parent.postMessage({{
+                            type: 'GAME_COMPLETED',
+                            score: score,
+                            scenario: '{scenario["title"]}'
+                        }}, '*');
+                    }}
+                }}
+                
+                function showFeedback(message, type) {{
+                    const feedback = document.getElementById('feedback');
+                    feedback.innerHTML = `<div class="${{type}}">${{message}}</div>`;
+                    
+                    // Clear feedback after 3 seconds
+                    setTimeout(() => {{
+                        if (type !== 'celebration') {{
+                            feedback.innerHTML = '';
+                        }}
+                    }}, 3000);
+                }}
+            </script>
+        </body>
+        </html>
+        """
         
-        .piece-correct {
-            background: #27ae60 !important;
-            border-color: #1e8449 !important;
-            animation: correctPlacement 0.5s ease-in-out;
-        }
-        
-        .piece-wrong {
-            background: #e74c3c !important;
-            border-color: #c0392b !important;
-        }
-        
-        .piece-pool {
-            background: #6c757d;
-            border-color: #495057;
-        }
-        
-        @keyframes correctPlacement {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-        
-        .drop-zone {
-            border: 3px dashed #bdc3c7;
-            border-radius: 12px;
-            min-height: 100px;
-            padding: 1rem;
-            margin: 0.5rem 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #ecf0f1;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        
-        .drop-zone:hover {
-            border-color: #3498db;
-            background: #ebf3fd;
-            transform: scale(1.02);
-        }
-        
-        .drop-zone.filled {
-            border-style: solid;
-            border-color: #27ae60;
-            background: #d5f4e6;
-        }
-        
-        .drop-zone.empty {
-            border-color: #3498db;
-            background: #ebf3fd;
-        }
-        
-        .task-progress {
-            background: #f8f9fa;
-            padding: 1rem;
-            border-radius: 10px;
-            margin: 1rem 0;
-            border-left: 5px solid #3498db;
-        }
-        
-        .score-card {
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-            color: white;
-            padding: 1.5rem;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        
-        .qr-container {
-            background: white;
-            padding: 1rem;
-            border-radius: 10px;
-            text-align: center;
-            margin: 1rem 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .pieces-pool {
-            background: #f8f9fa;
-            padding: 1.5rem;
-            border-radius: 15px;
-            border: 2px solid #dee2e6;
-            min-height: 300px;
-        }
-        
-        .subtask-score {
-            background: #28a745;
-            color: white;
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            animation: scorePopup 0.5s ease-in-out;
-        }
-        
-        @keyframes scorePopup {
-            0% { transform: scale(0); opacity: 0; }
-            50% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {
-            .main-header {
-                padding: 1rem;
-            }
-            .main-header h1 {
-                font-size: 1.5rem !important;
-            }
-            .puzzle-piece {
-                font-size: 0.85rem;
-                padding: 0.8rem;
-                min-height: 70px;
-            }
-            .drop-zone {
-                min-height: 80px;
-            }
-        }
-        </style>
-        """, unsafe_allow_html=True)
+        return drag_drop_html
     
     def main(self):
-        """Main app interface"""
+        """Main game interface"""
         st.set_page_config(
-            page_title="Logistics Puzzle Challenge v1.0",
-            page_icon="🚛",
-            layout="wide",
-            initial_sidebar_state="expanded"
+            page_title="Visual Logistics Adventure",
+            page_icon="🎮",
+            layout="wide"
         )
         
-        self.apply_custom_css()
-        
-        # Welcome screen for new users
         if not st.session_state.game_started:
             self.show_welcome_screen()
             return
         
         # Header
         st.markdown("""
-        <div class="main-header">
-            <h1>🚛 Logistics Puzzle Challenge v1.0</h1>
-            <p>Master logistics one task at a time! Arrange subtasks in correct order.</p>
-            <p><strong>Current Challenge:</strong> Complete each subtask correctly to earn points instantly!</p>
+        <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); 
+                    padding: 2rem; border-radius: 15px; color: white; text-align: center; margin-bottom: 2rem;">
+            <h1>🎮 Visual Logistics Adventure</h1>
+            <p>Drag and drop to solve real-world logistics puzzles!</p>
         </div>
         """, unsafe_allow_html=True)
         
         # Sidebar
         self.create_sidebar()
         
-        # Task selector
-        self.display_task_selector()
+        # Current scenario
+        scenarios = self.get_scenarios()
+        current_scenario = scenarios[st.session_state.current_scenario]
         
-        # Main content layout
-        col1, col2 = st.columns([3, 2])
+        # Display game
+        game_html = self.create_drag_drop_interface(current_scenario)
+        components.html(game_html, height=800, scrolling=True)
         
-        with col1:
-            self.display_current_task_area()
-            
-        with col2:
-            self.display_current_task_pieces()
+        # Game completion handler
+        self.handle_game_events()
     
     def show_welcome_screen(self):
         """Show welcome screen"""
         st.markdown("""
-        <div class="main-header">
-            <h1>🚛 Welcome to Logistics Puzzle Challenge!</h1>
-            <p>Master logistics skills through interactive puzzles!</p>
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    padding: 3rem; border-radius: 20px; color: white; text-align: center;">
+            <h1>🎮 Welcome to Visual Logistics Adventure!</h1>
+            <p style="font-size: 1.2em;">The fun way to learn logistics through drag-and-drop puzzles!</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -358,495 +526,168 @@ class LogisticsPuzzleGame:
         
         with col2:
             st.markdown("""
-            ### 🎯 How It Works:
-            **Work on ONE task at a time** - no mixing, no confusion!
+            ### 🎯 What Makes This Fun:
             
-            1. **Select a logistics task** from the 5 available
-            2. **See only 5 pieces** for that specific task
-            3. **Drag and arrange** them in the correct order
-            4. **Get 4 points immediately** for each correct placement
-            5. **Complete all tasks** to become a Logistics Master!
+            #### 🖱️ **True Drag & Drop**
+            - **Grab pieces** with your mouse or finger
+            - **Drag them** to the correct positions
+            - **Visual feedback** with animations and colors
             
-            ### 📋 5 Logistics Challenges:
-            - 📦 **Warehouse Management** - Inventory operations (20 points)
-            - 🚛 **Transportation Planning** - Route optimization (20 points)
-            - 🤝 **Supply Chain Coordination** - Supplier management (20 points)
-            - 📋 **Order Fulfillment** - Customer order processing (20 points)
-            - 📊 **Inventory Control** - Stock level management (20 points)
+            #### 📖 **Story-Driven Scenarios**
+            - 🏪 **Store Delivery Day** - Help groceries reach the store
+            - 📱 **Online Order Journey** - Track a birthday gift delivery
+            - 🍕 **Pizza Delivery Rush** - Get hot pizza to customers
+            - ✈️ **Airport Cargo** - Move packages from plane to trucks
+            - 🏭 **Factory to Store** - Ship toys for holiday season
             
-            ### 🏆 New Scoring System:
-            - ✅ **4 points per correct subtask** (immediate feedback!)
-            - ✅ **20 points per completed task**
-            - ✅ **100 points maximum total**
-            - ✅ **Green pieces** show correct placements
-            - ✅ **Instant gratification** - no waiting!
+            #### 🎨 **Visual & Intuitive**
+            - **Colorful icons** instead of boring text
+            - **Animated arrows** showing the flow
+            - **Immediate feedback** - green for correct, red for wrong
+            - **Celebration effects** when you succeed!
             
-            ### 💡 Why This Is Better:
-            - 🎯 **Focus on one task** at a time
-            - 🔄 **True drag-and-drop** experience
-            - ⚡ **Immediate scoring** and feedback
-            - 📱 **Mobile-optimized** for touch devices
-            - 🎨 **Visual feedback** with color changes
+            #### 📱 **Mobile-Friendly**
+            - **Touch and drag** on phones and tablets
+            - **Responsive design** for any screen size
+            - **QR code sharing** for instant access
+            
+            ### 🏆 **How to Play:**
+            1. **Read the story** for each scenario
+            2. **Drag the colorful step cards** to the numbered positions
+            3. **Watch for green checkmarks** when you're right
+            4. **Complete the flow** to earn points and unlock next scenario
+            5. **Have fun learning** real logistics processes!
+            
+            ### 🎯 **Why You'll Love It:**
+            - ✅ **Actually fun** to play (not like boring training!)
+            - ✅ **Learn by doing** instead of reading
+            - ✅ **Visual storytelling** makes it memorable
+            - ✅ **Quick 2-3 minute** scenarios perfect for breaks
+            - ✅ **Real-world skills** disguised as entertainment
             """)
             
             # Player name input
             player_name = st.text_input(
-                "🏷️ Enter your name to start the challenge:", 
+                "🎮 Enter your name to start the adventure:", 
                 placeholder="Your Name",
-                help="This will be used for the high scores leaderboard"
+                help="Join the logistics adventure!"
             )
             
-            if st.button("🚀 Start the Challenge!", type="primary", use_container_width=True):
+            if st.button("🚀 Start Playing!", type="primary", use_container_width=True):
                 if player_name.strip():
                     st.session_state.player_name = player_name.strip()
                     st.session_state.game_started = True
                     st.rerun()
                 else:
-                    st.error("Please enter your name to continue!")
+                    st.error("Please enter your name to start the adventure!")
     
     def create_sidebar(self):
-        """Create sidebar with game info and controls"""
-        st.sidebar.title("🎮 Game Dashboard")
+        """Create game sidebar"""
+        st.sidebar.title("🎮 Game Control")
         
         # Player info
-        st.sidebar.success(f"👤 **Player:** {st.session_state.player_name}")
+        st.sidebar.success(f"🎮 Player: {st.session_state.player_name}")
         
-        # Score display
-        max_possible = sum(1 for _ in st.session_state.completed_subtasks) * 4
-        st.sidebar.markdown(f"""
-        <div class="score-card">
-            <h2>🏆 {st.session_state.player_score}/100</h2>
-            <p>Points Earned</p>
-            <small>{len(st.session_state.completed_subtasks)}/25 Subtasks Complete</small>
-        </div>
-        """, unsafe_allow_html=True)
+        # Score
+        st.sidebar.metric("🏆 Total Score", f"{st.session_state.player_score}/500")
         
-        # Task progress overview
-        st.sidebar.markdown("### 📋 Progress Overview")
-        tasks = ["📦 Warehouse", "🚛 Transport", "🤝 Supply Chain", "📋 Orders", "📊 Inventory"]
+        # Scenario selection
+        scenarios = self.get_scenarios()
+        scenario_names = [f"{s['title']}" for s in scenarios.values()]
         
-        for i, task_name in enumerate(tasks):
-            completed_subtasks_count = sum(1 for task_slot in st.session_state.task_solutions[i] 
-                                         if task_slot is not None and f"{i}_{task_slot['piece_id']}" in st.session_state.completed_subtasks)
-            
-            if completed_subtasks_count == 5:
-                st.sidebar.success(f"✅ {task_name} (5/5)")
-            elif completed_subtasks_count > 0:
-                st.sidebar.info(f"🔄 {task_name} ({completed_subtasks_count}/5)")
+        current = st.sidebar.selectbox(
+            "🎯 Choose Scenario:",
+            range(len(scenarios)),
+            format_func=lambda x: scenario_names[x],
+            index=st.session_state.current_scenario
+        )
+        
+        if current != st.session_state.current_scenario:
+            st.session_state.current_scenario = current
+            st.rerun()
+        
+        # Progress
+        completed_count = len(st.session_state.completed_scenarios)
+        st.sidebar.progress(completed_count / 5, text=f"Progress: {completed_count}/5 scenarios")
+        
+        # Scenario status
+        st.sidebar.markdown("### 📋 Scenario Status")
+        for i, scenario in scenarios.items():
+            if i in st.session_state.completed_scenarios:
+                st.sidebar.success(f"✅ {scenario['title']}")
             else:
-                st.sidebar.info(f"⏳ {task_name} (0/5)")
-        
-        # Overall progress
-        total_completed = len(st.session_state.completed_subtasks)
-        progress = total_completed / 25
-        st.sidebar.progress(progress, text=f"Overall: {int(progress*100)}%")
+                st.sidebar.info(f"⏳ {scenario['title']}")
         
         # Controls
         st.sidebar.markdown("---")
-        st.sidebar.markdown("### 🛠️ Game Controls")
-        
-        col1, col2 = st.sidebar.columns(2)
-        with col1:
-            if st.button("🔄 Shuffle", help="Shuffle current task pieces"):
-                self.shuffle_current_task_pieces()
-                st.rerun()
-        
-        with col2:
-            if st.button("💡 Hint", help="Get a helpful hint"):
-                self.show_hint()
-        
-        if st.sidebar.button("🏆 High Scores", use_container_width=True):
-            self.show_high_scores()
-        
-        if st.sidebar.button("🆕 New Game", use_container_width=True):
+        if st.sidebar.button("🔄 New Game"):
             self.reset_game()
         
-        # QR Code generation
-        st.sidebar.markdown("---")
-        if st.sidebar.button("📱 Generate QR Code", use_container_width=True):
-            self.show_qr_code()
+        if st.sidebar.button("🏆 High Scores"):
+            self.show_high_scores()
         
         # Instructions
         with st.sidebar.expander("📖 How to Play"):
             st.markdown("""
-            **Playing the Game:**
-            1. **Select a task** using the task selector
-            2. **See 5 pieces** for that task only
-            3. **Drag pieces** to the correct positions (1-5)
-            4. **Watch pieces turn green** when placed correctly
-            5. **Earn 4 points immediately** for each correct placement
-            6. **Complete all 5 tasks** to win!
+            **Playing is Easy:**
+            1. **Read the story** at the top
+            2. **Grab a piece** and drag it
+            3. **Drop it** in the right position (1-5)
+            4. **Green = correct**, red = try again
+            5. **Complete the flow** to win!
             
-            **New Features:**
-            - 🎯 **One task at a time** - no confusion
-            - 🎨 **Instant visual feedback** - green = correct
-            - ⚡ **Immediate scoring** - 4 points per subtask
-            - 📱 **Touch-friendly** drag and drop
+            **Tips:**
+            - 🎯 Think about logical order
+            - 🔄 Click placed pieces to remove them
+            - 📱 Works great on mobile too!
             """)
     
-    def display_task_selector(self):
-        """Display task selector with visual progress"""
-        st.markdown("### 🎯 Select Your Challenge")
+    def handle_game_events(self):
+        """Handle game completion events from JavaScript"""
+        # This would normally handle messages from the HTML component
+        # For now, we'll use buttons to simulate completion
         
-        # Create task selection buttons
-        cols = st.columns(5)
-        tasks_data = st.session_state.tasks_data
-        
-        for i, (task_id, task_data) in enumerate(tasks_data.items()):
-            with cols[i]:
-                # Count completed subtasks for this task
-                completed_count = sum(1 for task_slot in st.session_state.task_solutions[task_id] 
-                                    if task_slot is not None and f"{task_id}_{task_slot['piece_id']}" in st.session_state.completed_subtasks)
+        if st.button("🎉 I completed this scenario!", type="primary"):
+            scenario_id = st.session_state.current_scenario
+            if scenario_id not in st.session_state.completed_scenarios:
+                st.session_state.completed_scenarios.add(scenario_id)
+                st.session_state.player_score += 100
                 
-                # Determine button style
-                if completed_count == 5:
-                    button_type = "primary"
-                    status = "✅ Complete"
-                elif completed_count > 0:
-                    button_type = "secondary" 
-                    status = f"🔄 {completed_count}/5"
-                else:
-                    button_type = "secondary"
-                    status = "⏳ Start"
+                st.balloons()
+                st.success("🎉 Scenario completed! +100 points!")
                 
-                # Task button
-                if st.button(
-                    f"{task_data['icon']}\n{task_data['title']}\n{status}",
-                    key=f"task_select_{task_id}",
-                    type=button_type,
-                    use_container_width=True
-                ):
-                    st.session_state.current_task = task_id
-                    if task_id not in st.session_state.task_pieces_shuffled:
-                        self.shuffle_current_task_pieces()
-                    st.rerun()
-        
-        # Current task info
-        current_task_data = tasks_data[st.session_state.current_task]
-        st.markdown(f"""
-        <div class="task-selector">
-            <h3>{current_task_data['icon']} Currently Working On: {current_task_data['title']}</h3>
-            <p>{current_task_data['description']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    def display_current_task_area(self):
-        """Display the current task solution area"""
-        current_task = st.session_state.current_task
-        current_task_data = st.session_state.tasks_data[current_task]
-        
-        st.subheader(f"🎯 {current_task_data['icon']} {current_task_data['title']} - Solution Area")
-        st.info("Drag pieces from the right panel to the correct positions below!")
-        
-        # Display solution slots
-        for slot_id in range(5):
-            piece = st.session_state.task_solutions[current_task][slot_id]
-            
-            if piece is not None:
-                # Check if piece is correctly placed
-                is_correct = (piece['piece_id'] == slot_id)
-                piece_class = "piece-correct" if is_correct else "piece-wrong"
-                
-                # Show placed piece
-                st.markdown(f"""
-                <div class="puzzle-piece {piece_class}" style="position: relative;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 1.1em; margin-bottom: 0.3em;">
-                            {current_task_data['icon']} {'✅' if is_correct else '❌'}
-                        </div>
-                        <div style="font-size: 0.9em; line-height: 1.2;">
-                            <strong>Step {slot_id + 1}:</strong> {piece['text']}
-                        </div>
-                        <div style="font-size: 0.8em; margin-top: 0.3em; opacity: 0.8;">
-                            Click to remove
-                        </div>
-                    </div>
-                    {f'<div class="subtask-score">+4 pts</div>' if is_correct else ''}
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Hidden remove button
-                if st.button("Remove Piece", key=f"remove_{current_task}_{slot_id}", help="Remove this piece"):
-                    self.remove_piece(current_task, slot_id)
-                    st.rerun()
-            else:
-                # Show empty slot
-                st.markdown(f"""
-                <div class="drop-zone empty">
-                    <div style="text-align: center; color: #7f8c8d;">
-                        <div style="font-size: 1.5em;">📥</div>
-                        <div style="font-size: 1em;"><strong>Step {slot_id + 1}</strong></div>
-                        <div style="font-size: 0.8em;">Drop piece here</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Hidden place button
-                if st.button("Place Here", key=f"place_{current_task}_{slot_id}", help="Place selected piece here"):
-                    if hasattr(st.session_state, 'selected_piece'):
-                        self.place_piece(current_task, slot_id, st.session_state.selected_piece)
-                        st.rerun()
-    
-    def display_current_task_pieces(self):
-        """Display pieces for the current task only"""
-        current_task = st.session_state.current_task
-        current_task_data = st.session_state.tasks_data[current_task]
-        
-        # Get available pieces (not yet placed)
-        if current_task not in st.session_state.task_pieces_shuffled:
-            self.shuffle_current_task_pieces()
-        
-        all_pieces = st.session_state.task_pieces_shuffled[current_task]
-        placed_piece_ids = set()
-        
-        # Find which pieces are already placed
-        for slot in st.session_state.task_solutions[current_task]:
-            if slot is not None:
-                placed_piece_ids.add(slot['id'])
-        
-        available_pieces = [p for p in all_pieces if p['id'] not in placed_piece_ids]
-        
-        st.subheader(f"🧩 {current_task_data['icon']} Task Pieces ({len(available_pieces)} available)")
-        
-        if not available_pieces:
-            st.success("🎉 All pieces for this task have been placed!")
-            return
-        
-        st.markdown("""
-        <div class="pieces-pool">
-        """, unsafe_allow_html=True)
-        
-        st.info("Click on a piece below to select it, then click a position slot on the left!")
-        
-        # Display available pieces
-        for piece in available_pieces:
-            # Check if this piece is selected
-            selected_class = ""
-            if hasattr(st.session_state, 'selected_piece') and st.session_state.selected_piece and st.session_state.selected_piece['id'] == piece['id']:
-                selected_class = "border: 3px solid #f39c12 !important; box-shadow: 0 0 15px rgba(243, 156, 18, 0.5) !important;"
-            
-            # Create styled piece
-            st.markdown(f"""
-            <div class="puzzle-piece piece-pool" style="background: {piece['color']}; {selected_class}">
-                <div style="text-align: center;">
-                    <div style="font-size: 1.1em; margin-bottom: 0.3em;">{piece['icon']}</div>
-                    <div style="font-size: 0.9em; line-height: 1.2;">{piece['text']}</div>
-                    <div style="font-size: 0.7em; margin-top: 0.3em; opacity: 0.8;">Click to select</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Hidden select button
-            if st.button("Select This Piece", key=f"select_{piece['id']}", help=f"Select: {piece['text']}"):
-                st.session_state.selected_piece = piece
-                st.success(f"✅ Selected: {piece['text'][:50]}...")
-                st.rerun()
-        
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-        # Show selected piece info
-        if hasattr(st.session_state, 'selected_piece') and st.session_state.selected_piece:
-            piece = st.session_state.selected_piece
-            st.info(f"🎯 **Selected:** {piece['icon']} {piece['text']}")
-            st.markdown("👈 Now click on a position slot on the left to place this piece!")
-    
-    def place_piece(self, task_id, slot_id, piece):
-        """Place a piece in the specified slot"""
-        if not piece:
-            st.warning("⚠️ Please select a piece first!")
-            return
-        
-        # Ensure piece belongs to current task
-        if piece['task_id'] != task_id:
-            st.error("❌ This piece doesn't belong to the current task!")
-            return
-        
-        # Place the piece
-        st.session_state.task_solutions[task_id][slot_id] = piece
-        
-        # Check if correctly placed and award points immediately
-        if piece['piece_id'] == slot_id:
-            subtask_id = f"{task_id}_{piece['piece_id']}"
-            if subtask_id not in st.session_state.completed_subtasks:
-                st.session_state.completed_subtasks.add(subtask_id)
-                st.session_state.player_score += 4
-                st.success(f"🎉 Correct placement! +4 points! Total: {st.session_state.player_score}")
-                
-                # Check if task is complete
-                task_complete = all(
-                    st.session_state.task_solutions[task_id][i] is not None and 
-                    st.session_state.task_solutions[task_id][i]['piece_id'] == i 
-                    for i in range(5)
-                )
-                
-                if task_complete:
-                    st.balloons()
-                    task_name = st.session_state.tasks_data[task_id]['title']
-                    st.success(f"🏆 {task_name} COMPLETED! All subtasks correct!")
-                    
-                    # Check if all tasks complete
-                    if len(st.session_state.completed_subtasks) == 25:
-                        st.success("🎯 AMAZING! ALL TASKS COMPLETED! You're a true Logistics Master!")
-                        self.save_high_score()
-        
-        # Clear selection
-        if hasattr(st.session_state, 'selected_piece'):
-            del st.session_state.selected_piece
-    
-    def remove_piece(self, task_id, slot_id):
-        """Remove a piece from a slot"""
-        piece = st.session_state.task_solutions[task_id][slot_id]
-        if piece:
-            # Remove from solution
-            st.session_state.task_solutions[task_id][slot_id] = None
-            
-            # Remove points if it was correctly placed
-            subtask_id = f"{task_id}_{piece['piece_id']}"
-            if subtask_id in st.session_state.completed_subtasks:
-                st.session_state.completed_subtasks.remove(subtask_id)
-                st.session_state.player_score -= 4
-                st.info(f"Piece removed. -4 points. Total: {st.session_state.player_score}")
-    
-    def show_qr_code(self):
-        """Generate and display QR code for the app"""
-        try:
-            # Create QR code
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=10,
-                border=4,
-            )
-            qr.add_data(st.session_state.app_url)
-            qr.make(fit=True)
-            
-            # Create image
-            qr_img = qr.make_image(fill_color="black", back_color="white")
-            
-            # Convert to bytes for Streamlit
-            buf = io.BytesIO()
-            qr_img.save(buf, format='PNG')
-            byte_im = buf.getvalue()
-            
-            # Display QR code
-            st.sidebar.markdown("### 📱 Share This Game")
-            st.sidebar.image(byte_im, caption="Scan to play!", width=200)
-            st.sidebar.success(f"Share this QR code!\n\n{st.session_state.app_url}")
-            
-            # Provide download link
-            st.sidebar.download_button(
-                label="💾 Download QR Code",
-                data=byte_im,
-                file_name="logistics_puzzle_qr.png",
-                mime="image/png"
-            )
-            
-        except Exception as e:
-            st.sidebar.error("QR code generation failed. Try after deployment!")
-    
-    def show_hint(self):
-        """Show task-specific hints"""
-        current_task = st.session_state.current_task
-        task_data = st.session_state.tasks_data[current_task]
-        
-        hints = {
-            0: [  # Warehouse Management
-                "💡 Start with receiving - you need inventory before you can sort it!",
-                "💡 Sorting comes before updating systems - organize first, then record!",
-                "💡 Database updates happen after physical sorting is complete!",
-                "💡 Storage assignment happens after you know what you have!",
-                "💡 Reports are always generated last - after all work is done!"
-            ],
-            1: [  # Transportation Planning
-                "💡 Begin by analyzing where deliveries need to go!",
-                "💡 Calculate distances after you know the destinations!",
-                "💡 Vehicle scheduling requires distance information first!",
-                "💡 Optimization comes after basic planning is complete!",
-                "💡 Documentation (manifests) are prepared last!"
-            ],
-            2: [  # Supply Chain Coordination
-                "💡 Start by contacting suppliers - you need quotes first!",
-                "💡 Negotiation happens after you have initial quotes!",
-                "💡 Meetings are scheduled during the negotiation process!",
-                "💡 Quality monitoring happens after supplies start arriving!",
-                "💡 Database maintenance is ongoing throughout the process!"
-            ],
-            3: [  # Order Fulfillment
-                "💡 Everything starts with processing the incoming order!",
-                "💡 Check inventory before promising delivery!",
-                "💡 Pick items only after verifying they're available!",
-                "💡 Package items after they're picked from shelves!",
-                "💡 Generate shipping labels as the final step!"
-            ],
-            4: [  # Inventory Control
-                "💡 Start by monitoring what you currently have!",
-                "💡 Identify shortages after reviewing current levels!",
-                "💡 Create purchase orders for items that are low!",
-                "💡 Track when new supplies will arrive!",
-                "💡 Update records after everything is processed!"
-            ]
-        }
-        
-        task_hints = hints.get(current_task, ["💡 Think about the logical order of operations!"])
-        hint = random.choice(task_hints)
-        st.info(hint)
+                if len(st.session_state.completed_scenarios) == 5:
+                    st.success("🏆 ALL SCENARIOS COMPLETED! You're a Logistics Master!")
+                    self.save_high_score()
     
     def show_high_scores(self):
-        """Display high scores leaderboard"""
+        """Show high scores"""
         if st.session_state.high_scores:
-            st.subheader("🏆 High Scores Leaderboard")
-            
-            df = pd.DataFrame(st.session_state.high_scores)
-            df = df.sort_values('score', ascending=False).head(10)
-            df.index = range(1, len(df) + 1)
-            
-            st.dataframe(
-                df[['name', 'score', 'subtasks_completed', 'date']], 
-                use_container_width=True,
-                column_config={
-                    "name": "Player Name",
-                    "score": "Score", 
-                    "subtasks_completed": "Subtasks Done",
-                    "date": "Date Achieved"
-                }
-            )
+            st.subheader("🏆 High Scores")
+            for i, score in enumerate(st.session_state.high_scores[:10], 1):
+                st.write(f"{i}. {score['name']} - {score['score']} points")
         else:
-            st.info("🎯 No high scores yet! Complete subtasks to be the first on the leaderboard!")
+            st.info("No high scores yet! Be the first!")
     
     def save_high_score(self):
-        """Save player's high score"""
+        """Save high score"""
         score_entry = {
             'name': st.session_state.player_name,
             'score': st.session_state.player_score,
-            'date': datetime.now().strftime('%Y-%m-%d %H:%M'),
-            'subtasks_completed': len(st.session_state.completed_subtasks)
+            'date': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
         st.session_state.high_scores.append(score_entry)
-        st.success(f"🎉 High score saved! {st.session_state.player_name}: {st.session_state.player_score} points")
+        st.session_state.high_scores.sort(key=lambda x: x['score'], reverse=True)
     
     def reset_game(self):
-        """Reset the entire game"""
-        # Keep high scores and player name, reset everything else
-        high_scores = st.session_state.high_scores
-        
-        # Clear game state
-        for key in ['current_task', 'task_solutions', 'task_pieces_shuffled', 
-                   'player_score', 'completed_subtasks', 'game_started']:
-            if key in st.session_state:
-                del st.session_state[key]
-        
-        # Reset selected piece
-        if hasattr(st.session_state, 'selected_piece'):
-            del st.session_state.selected_piece
-        
-        # Restore high scores
-        st.session_state.high_scores = high_scores
-        
+        """Reset game"""
+        st.session_state.current_scenario = 0
+        st.session_state.player_score = 0
+        st.session_state.completed_scenarios = set()
         st.rerun()
 
 def main():
-    """Main function to run the app"""
-    game = LogisticsPuzzleGame()
+    game = VisualLogisticsGame()
     game.main()
 
 if __name__ == "__main__":
