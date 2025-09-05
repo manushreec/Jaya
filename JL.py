@@ -34,7 +34,7 @@ class LogisticsPuzzleGame:
             st.session_state.high_scores = []
         if 'app_url' not in st.session_state:
             # This will be updated after deployment
-            st.session_state.app_url = "https://logistics-puzzle-challenge.streamlit.app"
+            st.session_state.app_url = "https://logisticsgame.streamlit.app"
             
     def create_logistics_tasks(self):
         """Create all logistics tasks and subtasks"""
